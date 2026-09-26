@@ -192,13 +192,14 @@ sequenceDiagram
 | `response.custom_commit = f` | `f(adapter)` for each adapter, then `f(None)` | `connection.py:171-173`, `:220-221` |
 | `RestrictedError` | `response._custom_rollback()` (called **with no arguments**) or rollback | `main.py:546-549` |
 | Any other exception, including one raised inside the `except HTTP` handler after the commit | rollback, which is a no-op if the commit already ran. Response is 500. | `main.py:560-574` |
-| Commit itself fails | **The exception is swallowed**, the connection is dropped, and the response is still the success response | `connection.py:170-178` (`except Exception: succeeded = False`). **[Current]** |
+| Commit fails in the per-adapter call (`commit` string action, or `custom_commit(adapter)`) | **The exception is swallowed**, the connection is dropped, and the response is still the success response | `connection.py:170-178` (`except Exception: succeeded = False`). **[Current]**, pinned by `test_c_transactions.py` (C4-silent) |
+| A callable `custom_commit` raises in the final `custom_commit(None)` call | **Not swallowed**: the call at `connection.py:220-221` is unguarded, so the exception escapes the `except HTTP` handler into the bare `except` (`main.py:560-581`). Response is 500 with a "Framework" ticket | **[Current]**, pinned by `test_c_transactions.py` (C4-final) |
 | Static file | none | `main.py:478-479` |
 
 Notes:
 
 - The asymmetry between `custom_commit` and `_custom_rollback` is **[Current]**. `Response.__init__` sets `_custom_commit = None` (`globals.py:671`), but `main.py:497` reads the public `custom_commit`. That attribute resolves to `None` through `Storage` unless the app sets it. The two hooks also have different call signatures.
-- The DB session row is written before the commit (`main.py:489`). File and cookie sessions are written after it (`:507`). If the commit fails silently (see the table above), the DB session update is lost without any error.
+- The DB session row is written before the commit (`main.py:489`). File and cookie sessions are written after it (`:507`). If the per-adapter commit fails silently (see the table above), the DB session update is lost without any error while the session cookie is still sent (pinned by `test_c_sessions_components.py`, C7).
 
 ## Dependencies
 
@@ -270,7 +271,7 @@ Notes:
 |---|---|
 | `current` is assigned when Request, Response and Session are instantiated | `current` is cleared at `main.py:314`. It is set only in `build_environment` (`compileapp.py:432-438`). |
 | The action is called as `function(*request.args, **request.vars)` | It is called with no arguments: `response._caller(f)` → `f()` (`compileapp.py:720`, `globals.py:669`) |
-| "db.commit() on all connections" on success only | Commit also happens on redirects and on any user-raised `HTTP`, including 4xx/5xx. The commit uses `close_all_instances`, and pydal swallows commit errors. |
+| "db.commit() on all connections" on success only | Commit also happens on redirects and on any user-raised `HTTP`, including 4xx/5xx. The commit uses `close_all_instances`. pydal swallows commit errors raised in the per-adapter call, but an exception from the final `custom_commit(None)` call produces a 500 with a ticket. |
 | Static versioning gives `max-age=31536000`, and Nginx must strip `/_1.2.3/` | web2py sets `max-age=315360000` (`main.py:344`) and strips the version itself (`rewrite.py:724`, `:1127-1129`). `URL()` adds the version only if `response.static_version_urls` is also set (`html.py:352-356`). |
 | (Already in architecture-report §11) static via `stream_file_or_304`; ticket after rollback | Confirmed: `stream_file_or_304_or_206`, and file tickets are logged before the rollback |
 

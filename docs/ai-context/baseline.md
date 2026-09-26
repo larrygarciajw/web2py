@@ -162,7 +162,8 @@ python -m unittest discover -s gluon/tests/characterization -t . -v
 |---|---|---|---|
 | A | Compatibility contracts A1–A8 | 71 | 71 passed |
 | B | Unit-level defects B1–B14 | 42 | 42 passed |
-| **Total** | | **113** | **113 passed (~0.25 s)** |
+| C | In-process `wsgibase` harness C1–C9 | 38 | 38 passed |
+| **Total** | | **151** | **151 passed (~1 s)** |
 
 Identical on repeated runs, no files left behind; the official suite
 still reports 487 run / 1 error / 13 skipped after adding them.

@@ -100,7 +100,7 @@ Labels: **[Current]** is behavior verified by reading. **[Compat]** is kept for 
 
 Notes:
 - **[Suspected issue]** With `do_not_commit=True`, `close(None)` performs no action and `succeeded` stays `True`, so on a pooled adapter the connection goes **back into the pool with the transaction still open** (`connection.py:169-190`). The next request that pops it inherits the uncommitted work. Most drivers keep it open until the next commit or rollback. Not tested.
-- **[Suspected issue]** A callable `custom_commit` is called once per adapter with the adapter, then once with `None` (`connection.py:220-221`). Also, `Response.__init__` defines `_custom_commit` (`globals.py:671`) while `main.py:497` reads `custom_commit`. This asymmetry is already listed in `architecture-report.md` §9.10.
+- **[Current]** (confirmed by `test_c_transactions.py`, C4) A callable `custom_commit` is called once per adapter with the adapter, then once with `None` (`connection.py:220-221`). An exception in the per-adapter call is swallowed by `close()` (client sees 200, writes lost). An exception in the final `None` call is **not** guarded and reaches `wsgibase`'s bare `except`, giving a 500 with a "Framework" ticket. Also, `Response.__init__` defines `_custom_commit` (`globals.py:671`) while `main.py:497` reads `custom_commit`. This asymmetry is already listed in `architecture-report.md` §9.10.
 - SQLite ignores pooling: the SQLite adapter forces `self.pool_size = 0` (`pydal/backends/sqlite.py:45`). So welcome's `pool_size = 10` has no effect with the default SQLite URI. **[Current]**
 
 ### Shell and scheduler
