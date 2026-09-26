@@ -35,6 +35,9 @@ python -m unittest -v gluon.tests.test_storage
 python -m unittest -v gluon.tests.test_globals.testResponse
 python -m unittest -v gluon.tests.test_router.TestRouter.test_router_args
 
+# Characterization suite (not part of the official suite; see below)
+python -m unittest discover -s gluon/tests/characterization -t . -v
+
 # Run the dev server
 python web2py.py -a <admin_password> -i 127.0.0.1 -p 8000
 
@@ -51,6 +54,10 @@ Test environment switches:
 - `--with_coverage` requires `coverage` and uses `gluon/tests/coverage.ini`.
 
 Six test modules (42 test functions) are not imported by `gluon/tests/__init__.py` and are never run by the suite, so run them explicitly by name. They are `test_restricted`, `test_login_methods`, `test_oauth20_account`, `test_update_languages`, `test_main` and `test_rocket`.
+
+Characterization tests live in `gluon/tests/characterization/`. They pin current behavior, including suspected defects, before any refactoring. They are deliberately not imported by `gluon/tests/__init__.py`, so the official baseline figures stay unchanged.
+- A test named `test_current_*` whose docstring carries `PINS-DEFECT: <id>` asserts today's probably-defective behavior. Update it deliberately as part of an approved fix, never to make a failing run pass.
+- Shared fixtures in `_support.py` provide temp dirs and restore `current`, `global_settings`, the routes and `Validator.translator`. New tests must restore any global they change and must leave no files behind.
 
 ### Windows baseline limitations
 

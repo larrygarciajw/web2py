@@ -135,6 +135,38 @@ Causes: 4 Windows symlink privilege, 1 multiprocessing, 1 Redis, 2 PyYAML,
 - **Submodule test suites** (pydal, yatl, rocket3) are not part of this
   command and were not run.
 
+### Supplementary runs (outside the official command)
+
+Run separately on the same environment (commit `cb91b60c` code, Windows 10,
+Python 3.14.7) to baseline the tests the official command does not execute.
+
+| Command | Result | Time |
+|---|---|---|
+| `python -m unittest -v gluon.tests.test_restricted gluon.tests.test_login_methods gluon.tests.test_oauth20_account gluon.tests.test_update_languages gluon.tests.test_main gluon.tests.test_rocket` | 42 run, 42 passed, 0 failed, 0 errors, 0 skipped | 0.38 s |
+| `python -m unittest -v gluon.tests.test_scheduler` | 25 run, 25 passed, 0 failed, 0 errors, 0 skipped | 221 s (spawns worker processes) |
+
+These results show the non-imported modules and the scheduler suite pass
+when run directly; they are not included in the 487-test official figure.
+
+### Characterization suite
+
+`gluon/tests/characterization/` (not imported by `gluon/tests/__init__.py`,
+so it does not change the official figure) pins current behavior before
+any refactoring. Run with:
+
+```
+python -m unittest discover -s gluon/tests/characterization -t . -v
+```
+
+| Phase | Scope | Tests | Result |
+|---|---|---|---|
+| A | Compatibility contracts A1–A8 | 71 | 71 passed |
+| B | Unit-level defects B1–B14 | 42 | 42 passed |
+| **Total** | | **113** | **113 passed (~0.25 s)** |
+
+Identical on repeated runs, no files left behind; the official suite
+still reports 487 run / 1 error / 13 skipped after adding them.
+
 ### Warnings
 
 - `SyntaxWarning` (invalid escape sequences), emitted at bytecode
